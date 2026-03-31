@@ -9,7 +9,7 @@ spring:
     config:
       server:
         git:
-          uri: file:///config-repo
+          uri: file:///Users/dishank/Desktop/library-management-system/config-repo
           default-label: main
           clone-on-start: true
 
