@@ -1,0 +1,60 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: library-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      # Mounting init.sql — MySQL sirf first startup pe run karega
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+      # mounting yaha :Taaki container ke delete hone se data loss na ho
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - library-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: library-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+        RABBITMQ_DEFAULT_USER: admin
+        RABBITMQ_DEFAULT_PASS: admin
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - library-network
+
+  # Observability
+
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: library-zipkin
+    ports:
+      - "9411:9411"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - library-network
+
+
+# agar ye nhi toh docker compose down would wipe pura database.
+volumes:
+  mysql-data:
+
+# Custom network
+networks:
+  library-network:
+    driver: bridge
