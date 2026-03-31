@@ -2,11 +2,13 @@ server:
   port: 8081
 
 spring:
+  sql:
+    init:
+      mode: always
+
   application:
     name: book-service
 
-  # Config Server import — at startup, this service calls Config Server
-  # to fetch book-service.yml from the Git repo. 'optional:' means
   config:
     import: optional:configserver:http://localhost:8888
 
@@ -19,6 +21,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    defer-datasource-initialization: true
     show-sql: true
 
 eureka:
@@ -26,7 +29,6 @@ eureka:
     service-url:
       defaultZone: http://localhost:8761/eureka/
 
-# Tracing: send 100% of spans to Zipkin (dev setting)
 management:
   tracing:
     sampling:
