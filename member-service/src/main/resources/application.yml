@@ -4,7 +4,7 @@ server:
 spring:
   application:
     name: member-service
-
+  sql.init.mode: always
   config:
     import: optional:configserver:http://localhost:8888
 
@@ -16,6 +16,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    defer-datasource-initialization: true
     show-sql: true
 
 eureka:
