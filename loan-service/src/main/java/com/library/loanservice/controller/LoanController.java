@@ -19,4 +19,9 @@ public class LoanController {
         return ResponseEntity.ok(loanService.createLoan(request));
     }
 
+    @PutMapping("/api/v1/loans/{id}/return")
+    public ResponseEntity<LoanResponseDTO> returnBook(@PathVariable Long id) {
+        return ResponseEntity.ok(loanService.returnBook(id));
+    }
+
 }

@@ -67,4 +67,39 @@ public class LoanService {
                 .build();
     }
 
+    @Transactional
+    public LoanResponseDTO returnBook(Long loanId){
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found with id: " + loanId));
+
+        if (loan.getStatus() == LoanStatus.RETURNED) {
+            throw new RuntimeException("Loan " + loanId + " is already returned");
+        }
+
+        // Update the loan status and save
+        loan.setStatus(LoanStatus.RETURNED);
+        loanRepository.save(loan);
+
+        // Phirse available mark kardo
+        bookClient.updateAvailability(loan.getBookId(), true);
+        // Store event
+        LoanEvent event = LoanEvent.builder()
+                .loanId(loanId)
+                .eventType(EventType.BOOK_RETURNED)
+                .timestamp(LocalDateTime.now())
+                .build();
+        loanEventRepository.save(event);
+
+        log.info("Book returned: loanId={}", loanId);
+
+        return LoanResponseDTO.builder()
+                .id(loan.getId())
+                .bookId(loan.getBookId())
+                .memberId(loan.getMemberId())
+                .status(loan.getStatus().name())
+                .dueDate(loan.getDueDate())
+                .message("Book returned. BOOK_RETURNED event appended to Event Store.")
+                .build();
+    }
+
 }
