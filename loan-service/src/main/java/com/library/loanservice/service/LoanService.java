@@ -156,4 +156,30 @@ public class LoanService {
                 .build();
     }
 
+    public LoanResponseDTO getLoanById(Long loanId) {
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found with id: " + loanId));
+
+        return LoanResponseDTO.builder()
+                .id(loan.getId())
+                .bookId(loan.getBookId())
+                .memberId(loan.getMemberId())
+                .status(loan.getStatus().name())
+                .dueDate(loan.getDueDate())
+                .build();
+    }
+
+    public List<LoanResponseDTO> getActiveLoans() {
+        return loanRepository.findByStatus(LoanStatus.ACTIVE).stream()
+                .map(loan -> LoanResponseDTO.builder()
+                        .id(loan.getId())
+                        .bookId(loan.getBookId())
+                        .memberId(loan.getMemberId())
+                        .status(loan.getStatus().name())
+                        .dueDate(loan.getDueDate())
+                        .build())
+                .toList();
+    }
+
+
 }

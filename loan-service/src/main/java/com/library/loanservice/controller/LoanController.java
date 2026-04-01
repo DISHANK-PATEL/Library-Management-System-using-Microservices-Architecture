@@ -29,4 +29,13 @@ public class LoanController {
         return ResponseEntity.ok(loanService.rebuildLoanState(id));
     }
 
+    @GetMapping("/api/v1/internal/loans/{id}")
+    public ResponseEntity<LoanResponseDTO> getLoanById(@PathVariable Long id) {
+        return ResponseEntity.ok(loanService.getLoanById(id));
+    }
+
+    @GetMapping("/api/v1/internal/loans/active")
+    public ResponseEntity<List<LoanResponseDTO>> getActiveLoans() {
+        return ResponseEntity.ok(loanService.getActiveLoans());
+    }
 }
