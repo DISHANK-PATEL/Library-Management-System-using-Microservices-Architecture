@@ -102,4 +102,58 @@ public class LoanService {
                 .build();
     }
 
+    public RebuildResponseDTO rebuildLoanState(Long loanId) {
+        // Current state
+        Loan currentLoan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found with id: " + loanId));
+
+        // Fetch events in chronological order
+        List<LoanEvent> events = loanEventRepository.findByLoanIdOrderByTimestampAsc(loanId);
+
+        if (events.isEmpty()) {
+            throw new RuntimeException("No events found for loan: " + loanId);
+        }
+
+        // Replay events to compute true state
+        LoanStatus trueStatus = null;
+        for (LoanEvent event : events) {
+            switch (event.getEventType()) {
+                case LOAN_CREATED -> trueStatus = LoanStatus.ACTIVE;
+                case BOOK_RETURNED -> trueStatus = LoanStatus.RETURNED;
+            }
+        }
+
+        // Build audit log
+        List<EventDTO> auditLog = events.stream()
+                .map(e -> EventDTO.builder()
+                        .eventType(e.getEventType().name())
+                        .timestamp(e.getTimestamp())
+                        .build())
+                .toList();
+
+        // Compare and reconcile
+        String action;
+        String message;
+
+        if (currentLoan.getStatus() == trueStatus) {
+            action = "NO_ACTION";
+            message = "Read Model is consistent with the Event Store. No changes needed.";
+        } else {
+            currentLoan.setStatus(trueStatus);
+            loanRepository.save(currentLoan);
+            action = "OVERWROTE_READ_MODEL";
+            message = "State divergence detected. The Read Model was updated to match the Event Store.";
+            log.warn("STATE_INCONSISTENCY_RESOLVED for Loan ID: {}", loanId);
+        }
+
+        return RebuildResponseDTO.builder()
+                .loanId(loanId)
+                .reconciliationAction(action)
+                .message(message)
+                .resolvedStatus(trueStatus.name())
+                .eventsReplayed(events.size())
+                .auditLog(auditLog)
+                .build();
+    }
+
 }

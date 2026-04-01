@@ -24,4 +24,9 @@ public class LoanController {
         return ResponseEntity.ok(loanService.returnBook(id));
     }
 
+    @GetMapping("/api/v1/loans/{id}/rebuild")
+    public ResponseEntity<RebuildResponseDTO> rebuildLoanState(@PathVariable Long id) {
+        return ResponseEntity.ok(loanService.rebuildLoanState(id));
+    }
+
 }
