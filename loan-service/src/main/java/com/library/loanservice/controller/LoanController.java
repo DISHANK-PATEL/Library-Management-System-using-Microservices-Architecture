@@ -1,0 +1,41 @@
+package com.library.loanservice.controller;
+
+import com.library.loanservice.dto.*;
+import com.library.loanservice.service.LoanService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequiredArgsConstructor
+public class LoanController {
+
+    private final LoanService loanService;
+
+    @PostMapping("/api/v1/loans")
+    public ResponseEntity<LoanResponseDTO> createLoan(@RequestBody LoanRequestDTO request) {
+        return ResponseEntity.ok(loanService.createLoan(request));
+    }
+
+    @PutMapping("/api/v1/loans/{id}/return")
+    public ResponseEntity<LoanResponseDTO> returnBook(@PathVariable Long id) {
+        return ResponseEntity.ok(loanService.returnBook(id));
+    }
+
+    @GetMapping("/api/v1/loans/{id}/rebuild")
+    public ResponseEntity<RebuildResponseDTO> rebuildLoanState(@PathVariable Long id) {
+        return ResponseEntity.ok(loanService.rebuildLoanState(id));
+    }
+
+    @GetMapping("/api/v1/internal/loans/{id}")
+    public ResponseEntity<LoanResponseDTO> getLoanById(@PathVariable Long id) {
+        return ResponseEntity.ok(loanService.getLoanById(id));
+    }
+
+    @GetMapping("/api/v1/internal/loans/active")
+    public ResponseEntity<List<LoanResponseDTO>> getActiveLoans() {
+        return ResponseEntity.ok(loanService.getActiveLoans());
+    }
+}
