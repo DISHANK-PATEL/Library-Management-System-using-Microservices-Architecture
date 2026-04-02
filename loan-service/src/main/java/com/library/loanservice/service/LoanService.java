@@ -26,6 +26,7 @@ public class LoanService {
     private final LoanEventRepository loanEventRepository;
     private final BookClient bookClient;
     private final MemberClient memberClient;
+    private final EventPublisher eventPublisher;
 
     @Transactional
     public LoanResponseDTO createLoan(LoanRequestDTO request) {
@@ -57,15 +58,27 @@ public class LoanService {
         log.info("Loan created: loanId={}, bookId={}, memberId={}",
                 loan.getId(), request.getBookId(), request.getMemberId());
 
+        // Publish to RabbitMQ
+        LoanEventMessage eventMessage = LoanEventMessage.builder()
+                .eventId("evt-" + loan.getId())
+                .eventType("LOAN_CREATED")
+                .loanId(loan.getId())
+                .bookTitle(book.getTitle())
+                .memberEmail(member.getEmail())
+                .dueDate(loan.getDueDate().toString())
+                .build();
+        eventPublisher.publishLoanCreated(eventMessage);
+
         return LoanResponseDTO.builder()
                 .id(loan.getId())
                 .bookId(loan.getBookId())
                 .memberId(loan.getMemberId())
                 .status(loan.getStatus().name())
                 .dueDate(loan.getDueDate())
-                .message("Loan created successfully. LOAN_CREATED event stored.")
+                .message("Loan created successfully. LOAN_CREATED event published to RabbitMQ.")
                 .build();
     }
+
 
     @Transactional
     public LoanResponseDTO returnBook(Long loanId){
@@ -91,6 +104,17 @@ public class LoanService {
         loanEventRepository.save(event);
 
         log.info("Book returned: loanId={}", loanId);
+
+        // Publish to RabbitMQ
+        BookClientResponse book = bookClient.getBook(loan.getBookId());
+        LoanEventMessage eventMessage = LoanEventMessage.builder()
+                .eventId("evt-return-" + loanId)
+                .eventType("BOOK_RETURNED")
+                .loanId(loanId)
+                .bookTitle(book.getTitle())
+                .dueDate(loan.getDueDate().toString())
+                .build();
+        eventPublisher.publishLoanReturned(eventMessage);
 
         return LoanResponseDTO.builder()
                 .id(loan.getId())
