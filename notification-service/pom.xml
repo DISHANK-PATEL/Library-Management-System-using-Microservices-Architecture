@@ -26,6 +26,11 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>io.zipkin.brave</groupId>
+            <artifactId>brave-instrumentation-spring-rabbit</artifactId>
+        </dependency>
+
         <!-- RabbitMQ: consumes loan.book.created and fine.penalty.generated events -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
