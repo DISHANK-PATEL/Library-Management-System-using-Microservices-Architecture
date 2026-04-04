@@ -6,6 +6,7 @@ import com.library.loanservice.client.MemberClient;
 import com.library.loanservice.client.MemberClientResponse;
 import com.library.loanservice.dto.*;
 import com.library.loanservice.entity.*;
+import com.library.loanservice.exception.ResourceNotFoundException;
 import com.library.loanservice.repository.LoanEventRepository;
 import com.library.loanservice.repository.LoanRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +36,8 @@ public class LoanService {
 
         BookClientResponse book = bookClient.getBook(request.getBookId());
         if (!book.isAvailable()) {
-            throw new RuntimeException("Book with id " + request.getBookId() + " is not available");
+            //throw new ResourceNotFoundException("Book with id " + request.getBookId() + " is not available");
+            throw new IllegalStateException("Book with id " + request.getBookId() + " is not available");
         }
 
         MemberClientResponse member = memberClient.getMember(request.getMemberId());
@@ -90,10 +92,10 @@ public class LoanService {
     @Transactional
     public LoanResponseDTO returnBook(Long loanId) {
         Loan loan = loanRepository.findById(loanId)
-                .orElseThrow(() -> new RuntimeException("Loan not found with id: " + loanId));
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found with id: " + loanId));
 
         if (loan.getStatus() == LoanStatus.RETURNED) {
-            throw new RuntimeException("Loan " + loanId + " is already returned");
+            throw new ResourceNotFoundException("Loan " + loanId + " is already returned");
         }
 
         BookClientResponse book = bookClient.getBook(loan.getBookId());
@@ -137,12 +139,12 @@ public class LoanService {
 
     public RebuildResponseDTO rebuildLoanState(Long loanId) {
         Loan currentLoan = loanRepository.findById(loanId)
-                .orElseThrow(() -> new RuntimeException("Loan not found with id: " + loanId));
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found with id: " + loanId));
 
         List<LoanEvent> events = loanEventRepository.findByLoanIdOrderByTimestampAsc(loanId);
 
         if (events.isEmpty()) {
-            throw new RuntimeException("No events found for loan: " + loanId);
+            throw new ResourceNotFoundException("No events found for loan: " + loanId);
         }
 
         LoanStatus trueStatus = null;
@@ -154,7 +156,7 @@ public class LoanService {
         }
 
         if (trueStatus == null) {
-            throw new RuntimeException("Could not determine state from events for loan: " + loanId);
+            throw new ResourceNotFoundException("Could not determine state from events for loan: " + loanId);
         }
 
         List<EventDTO> auditLog = events.stream()
@@ -195,7 +197,7 @@ public class LoanService {
 
     public LoanResponseDTO getLoanById(Long loanId) {
         Loan loan = loanRepository.findById(loanId)
-                .orElseThrow(() -> new RuntimeException("Loan not found with id: " + loanId));
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found with id: " + loanId));
 
         return LoanResponseDTO.builder()
                 .id(loan.getId())
