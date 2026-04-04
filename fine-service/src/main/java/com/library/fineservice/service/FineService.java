@@ -4,6 +4,7 @@ import com.library.fineservice.client.*;
 import com.library.fineservice.dto.FineDetailsDTO;
 import com.library.fineservice.entity.Fine;
 import com.library.fineservice.entity.FineStatus;
+import com.library.fineservice.exception.ResourceNotFoundException;
 import com.library.fineservice.repository.FineRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +35,7 @@ public class FineService {
 
     public FineDetailsDTO getFineDetails(Long fineId) {
         Fine fine = fineRepository.findById(fineId)
-                .orElseThrow(() -> new RuntimeException("Fine not found with id: " + fineId));
+                .orElseThrow(() -> new ResourceNotFoundException("Fine not found with id: " + fineId));
 
         // Fire all three calls in parallel
         CompletableFuture<LoanClientResponse> loanFuture =

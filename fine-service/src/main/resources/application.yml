@@ -5,6 +5,11 @@ spring:
   application:
     name: fine-service
 
+  cloud:
+    openfeign:
+      okhttp:
+        enabled: true
+
   config:
     import: optional:configserver:http://localhost:8888
 
@@ -23,6 +28,9 @@ spring:
     port: 5672
     username: admin
     password: admin
+    listener:
+      simple:
+        observation-enabled: true
 
 eureka:
   client:
@@ -36,10 +44,18 @@ management:
   tracing:
     sampling:
       probability: 1.0
-  zipkin:
-    tracing:
+    zipkin:
       endpoint: http://localhost:9411/api/v2/spans
+
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,info,metrics,env,loggers,trace
+
+  metrics:
+    tags:
+      application: fine-service
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},traceId=%X{traceId:-},spanId=%X{spanId:-}]"

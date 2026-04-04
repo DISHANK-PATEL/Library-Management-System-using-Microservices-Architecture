@@ -5,6 +5,13 @@ spring:
   application:
     name: loan-service
 
+  cloud:
+    openfeign:
+      okhttp:
+        enabled: true
+      micrometer:
+        enabled: true
+
   config:
     import: optional:configserver:http://localhost:8888
 
@@ -23,6 +30,9 @@ spring:
     port: 5672
     username: admin
     password: admin
+    listener:
+      simple:
+        observation-enabled: true
 
 eureka:
   client:
@@ -44,13 +54,22 @@ management:
   tracing:
     sampling:
       probability: 1.0
-  zipkin:
-    tracing:
+    zipkin:
       endpoint: http://localhost:9411/api/v2/spans
+
   endpoints:
     web:
       exposure:
-        include: health, circuitbreakers, circuitbreakerevents
+        include: health,info,metrics,env,loggers,trace,circuitbreakers,circuitbreakerevents
+
   health:
     circuitbreakers:
       enabled: true
+
+  metrics:
+    tags:
+      application: loan-service
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},traceId=%X{traceId:-},spanId=%X{spanId:-}]"

@@ -2,6 +2,7 @@ package com.library.bookservice.service;
 
 import com.library.bookservice.dto.BookDTO;
 import com.library.bookservice.entity.Book;
+import com.library.bookservice.exception.ResourceNotFoundException;
 import com.library.bookservice.mapper.BookMapper;
 import com.library.bookservice.repository.BookRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ public class BookService {
 
     public BookDTO getBookById(Long id) {
         Book book = bookRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Book not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
 
         String instanceId = applicationName + "-" + port;
         return BookMapper.toDTO(book, instanceId);
@@ -29,7 +30,7 @@ public class BookService {
 
     public void updateAvailability(Long id, boolean available) {
         Book book = bookRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Book not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
         book.setAvailable(available);
         bookRepository.save(book);
     }

@@ -6,12 +6,14 @@ import com.library.loanservice.client.MemberClient;
 import com.library.loanservice.client.MemberClientResponse;
 import com.library.loanservice.dto.*;
 import com.library.loanservice.entity.*;
+import com.library.loanservice.exception.ResourceNotFoundException;
 import com.library.loanservice.repository.LoanEventRepository;
 import com.library.loanservice.repository.LoanRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import io.micrometer.tracing.Tracer;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -22,6 +24,7 @@ import java.util.List;
 @Slf4j
 public class LoanService {
 
+    private final Tracer tracer;
     private final LoanRepository loanRepository;
     private final LoanEventRepository loanEventRepository;
     private final BookClient bookClient;
@@ -33,7 +36,8 @@ public class LoanService {
 
         BookClientResponse book = bookClient.getBook(request.getBookId());
         if (!book.isAvailable()) {
-            throw new RuntimeException("Book with id " + request.getBookId() + " is not available");
+            //throw new ResourceNotFoundException("Book with id " + request.getBookId() + " is not available");
+            throw new IllegalStateException("Book with id " + request.getBookId() + " is not available");
         }
 
         MemberClientResponse member = memberClient.getMember(request.getMemberId());
@@ -44,6 +48,7 @@ public class LoanService {
                 .status(LoanStatus.ACTIVE)
                 .dueDate(LocalDate.now().plusDays(14))
                 .build();
+
         loan = loanRepository.save(loan);
 
         bookClient.updateAvailability(request.getBookId(), false);
@@ -58,7 +63,6 @@ public class LoanService {
         log.info("Loan created: loanId={}, bookId={}, memberId={}",
                 loan.getId(), request.getBookId(), request.getMemberId());
 
-        // Publish to RabbitMQ
         LoanEventMessage eventMessage = LoanEventMessage.builder()
                 .eventId("evt-" + loan.getId())
                 .eventType("LOAN_CREATED")
@@ -68,6 +72,12 @@ public class LoanService {
                 .dueDate(loan.getDueDate().toString())
                 .build();
         eventPublisher.publishLoanCreated(eventMessage);
+
+        if (tracer != null && tracer.currentSpan() != null) {
+            tracer.currentSpan().tag("loanId", loan.getId().toString());
+            tracer.currentSpan().tag("memberId", request.getMemberId().toString());
+            tracer.currentSpan().tag("bookId", request.getBookId().toString());
+        }
 
         return LoanResponseDTO.builder()
                 .id(loan.getId())
@@ -79,23 +89,22 @@ public class LoanService {
                 .build();
     }
 
-
     @Transactional
-    public LoanResponseDTO returnBook(Long loanId){
+    public LoanResponseDTO returnBook(Long loanId) {
         Loan loan = loanRepository.findById(loanId)
-                .orElseThrow(() -> new RuntimeException("Loan not found with id: " + loanId));
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found with id: " + loanId));
 
         if (loan.getStatus() == LoanStatus.RETURNED) {
-            throw new RuntimeException("Loan " + loanId + " is already returned");
+            throw new ResourceNotFoundException("Loan " + loanId + " is already returned");
         }
 
-        // Update the loan status and save
+        BookClientResponse book = bookClient.getBook(loan.getBookId());
+
         loan.setStatus(LoanStatus.RETURNED);
         loanRepository.save(loan);
 
-        // Phirse available mark kardo
         bookClient.updateAvailability(loan.getBookId(), true);
-        // Store event
+
         LoanEvent event = LoanEvent.builder()
                 .loanId(loanId)
                 .eventType(EventType.BOOK_RETURNED)
@@ -105,8 +114,6 @@ public class LoanService {
 
         log.info("Book returned: loanId={}", loanId);
 
-        // Publish to RabbitMQ
-        BookClientResponse book = bookClient.getBook(loan.getBookId());
         LoanEventMessage eventMessage = LoanEventMessage.builder()
                 .eventId("evt-return-" + loanId)
                 .eventType("BOOK_RETURNED")
@@ -115,6 +122,10 @@ public class LoanService {
                 .dueDate(loan.getDueDate().toString())
                 .build();
         eventPublisher.publishLoanReturned(eventMessage);
+
+        if (tracer != null && tracer.currentSpan() != null) {
+            tracer.currentSpan().tag("loanId", loanId.toString());
+        }
 
         return LoanResponseDTO.builder()
                 .id(loan.getId())
@@ -127,18 +138,15 @@ public class LoanService {
     }
 
     public RebuildResponseDTO rebuildLoanState(Long loanId) {
-        // Current state
         Loan currentLoan = loanRepository.findById(loanId)
-                .orElseThrow(() -> new RuntimeException("Loan not found with id: " + loanId));
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found with id: " + loanId));
 
-        // Fetch events in chronological order
         List<LoanEvent> events = loanEventRepository.findByLoanIdOrderByTimestampAsc(loanId);
 
         if (events.isEmpty()) {
-            throw new RuntimeException("No events found for loan: " + loanId);
+            throw new ResourceNotFoundException("No events found for loan: " + loanId);
         }
 
-        // Replay events to compute true state
         LoanStatus trueStatus = null;
         for (LoanEvent event : events) {
             switch (event.getEventType()) {
@@ -147,7 +155,10 @@ public class LoanService {
             }
         }
 
-        // Build audit log
+        if (trueStatus == null) {
+            throw new ResourceNotFoundException("Could not determine state from events for loan: " + loanId);
+        }
+
         List<EventDTO> auditLog = events.stream()
                 .map(e -> EventDTO.builder()
                         .eventType(e.getEventType().name())
@@ -155,7 +166,6 @@ public class LoanService {
                         .build())
                 .toList();
 
-        // Compare and reconcile
         String action;
         String message;
 
@@ -170,6 +180,11 @@ public class LoanService {
             log.warn("STATE_INCONSISTENCY_RESOLVED for Loan ID: {}", loanId);
         }
 
+        if (tracer != null && tracer.currentSpan() != null) {
+            tracer.currentSpan().tag("loanId", loanId.toString());
+            tracer.currentSpan().tag("reconciliationResult", action);
+        }
+
         return RebuildResponseDTO.builder()
                 .loanId(loanId)
                 .reconciliationAction(action)
@@ -182,7 +197,7 @@ public class LoanService {
 
     public LoanResponseDTO getLoanById(Long loanId) {
         Loan loan = loanRepository.findById(loanId)
-                .orElseThrow(() -> new RuntimeException("Loan not found with id: " + loanId));
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found with id: " + loanId));
 
         return LoanResponseDTO.builder()
                 .id(loan.getId())
@@ -204,6 +219,4 @@ public class LoanService {
                         .build())
                 .toList();
     }
-
-
 }
