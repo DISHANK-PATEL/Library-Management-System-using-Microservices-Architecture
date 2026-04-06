@@ -11,6 +11,8 @@ public class RabbitMQConfig {
 
     public static final String EXCHANGE = "library.events.exchange";
     public static final String NOTIFICATION_QUEUE = "notification.email.queue";
+    public static final String DLQ = "notification.email.dlq";
+    public static final String DLX = "library.events.dlx";
 
     @Bean
     public TopicExchange exchange() {
@@ -18,8 +20,26 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public DirectExchange deadLetterExchange() {
+        return new DirectExchange(DLX);
+    }
+
+    @Bean
+    public Queue deadLetterQueue() {
+        return QueueBuilder.durable(DLQ).build();
+    }
+
+    @Bean
+    public Binding dlqBinding(Queue deadLetterQueue, DirectExchange deadLetterExchange) {
+        return BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange).with(NOTIFICATION_QUEUE);
+    }
+
+    @Bean
     public Queue notificationQueue() {
-        return QueueBuilder.durable(NOTIFICATION_QUEUE).build();
+        return QueueBuilder.durable(NOTIFICATION_QUEUE)
+                .withArgument("x-dead-letter-exchange", DLX)
+                .withArgument("x-dead-letter-routing-key", NOTIFICATION_QUEUE)
+                .build();
     }
 
     @Bean

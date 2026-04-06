@@ -1,6 +1,6 @@
-INSERT INTO members (name, email) VALUES ('Alice Smith', 'alice@example.com')
+INSERT INTO members (name, email) VALUES ('Dishank', 'dishankpatel16082003@gmail.com')
     ON DUPLICATE KEY UPDATE name = name;
-INSERT INTO members (name, email) VALUES ('Bob Johnson', 'bob@example.com')
+INSERT INTO members (name, email) VALUES ('Ramesh', 'dishankpatel1682003@gmail.com')
     ON DUPLICATE KEY UPDATE name = name;
-INSERT INTO members (name, email) VALUES ('Charlie Brown', 'charlie@example.com')
+INSERT INTO members (name, email) VALUES ('Suresh', '')
     ON DUPLICATE KEY UPDATE name = name;
