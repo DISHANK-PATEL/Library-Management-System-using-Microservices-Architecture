@@ -23,6 +23,7 @@ public class TracingConfig {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(new Jackson2JsonMessageConverter());
+        factory.setDefaultRequeueRejected(false);
         springRabbitTracing.decorateSimpleRabbitListenerContainerFactory(factory);
         return factory;
     }

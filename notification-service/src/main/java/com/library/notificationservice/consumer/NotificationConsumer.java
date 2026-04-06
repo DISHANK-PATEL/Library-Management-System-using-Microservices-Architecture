@@ -2,22 +2,19 @@ package com.library.notificationservice.consumer;
 
 import com.library.notificationservice.config.RabbitMQConfig;
 import com.library.notificationservice.dto.LibraryEvent;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
+
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class NotificationConsumer {
 
-    private final JavaMailSender mailSender;
-
-    @Value("${spring.mail.username}")
-    private String fromEmail;
+    @Autowired
+    private JavaMailSender mailSender;
 
     @RabbitListener(queues = RabbitMQConfig.NOTIFICATION_QUEUE)
     public void handleEvent(LibraryEvent event) {
@@ -25,24 +22,25 @@ public class NotificationConsumer {
 
         String subject;
         String body;
+        String to = event.getMemberEmail();
 
         switch (event.getEventType()) {
             case "LOAN_CREATED" -> {
                 subject = "Book Borrowed Successfully";
                 body = String.format(
-                        "Hello,\n\nYou have successfully borrowed '%s'.\nDue date: %s\n\nPlease return it on time to avoid fines.\n\nLibrary Management System",
+                        "Hello,\n\nYou have borrowed '%s'.\nDue date: %s\n\nLibrary Management System",
                         event.getBookTitle(), event.getDueDate());
             }
             case "BOOK_RETURNED" -> {
                 subject = "Book Returned Successfully";
                 body = String.format(
-                        "Hello,\n\nYou have successfully returned '%s'.\nThank you for returning on time!\n\nLibrary Management System",
+                        "Hello,\n\nYou have returned '%s'.\nThank you!\n\nLibrary Management System",
                         event.getBookTitle());
             }
             case "FINE_GENERATED" -> {
                 subject = "Overdue Fine Alert";
                 body = String.format(
-                        "Hello,\n\nA fine of $%s has been generated for loan #%s.\nPlease pay at the earliest.\n\nLibrary Management System",
+                        "Hello,\n\nA fine of $%s has been generated for loan #%s.\n\nLibrary Management System",
                         event.getAmount(), event.getLoanId());
             }
             default -> {
@@ -51,24 +49,18 @@ public class NotificationConsumer {
             }
         }
 
-        String to = event.getMemberEmail();
-        if (to == null || to.isEmpty()) {
-            log.warn("No email address for event: {}", event.getEventType());
-            return;
-        }
-
-        try {
+        if (mailSender != null && to != null && !to.isEmpty()) {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(to);
             message.setSubject(subject);
             message.setText(body);
-            message.setFrom(fromEmail);
-
+            message.setFrom("library@example.com");
             mailSender.send(message);
             log.info("Email sent to {} — Subject: {}", to, subject);
-
-        } catch (Exception e) {
-            log.error("Failed to send email to {}", to, e);
+        } else {
+            log.info("========== EMAIL NOTIFICATION (LOGGED) ==========");
+            log.info("TO: {}, SUBJECT: {}, BODY: {}", to, subject, body);
+            log.info("=================================================");
         }
     }
 }

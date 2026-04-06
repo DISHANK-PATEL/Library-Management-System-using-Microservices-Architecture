@@ -95,7 +95,7 @@ public class LoanService {
                 .orElseThrow(() -> new ResourceNotFoundException("Loan not found with id: " + loanId));
 
         if (loan.getStatus() == LoanStatus.RETURNED) {
-            throw new ResourceNotFoundException("Loan " + loanId + " is already returned");
+            throw new IllegalStateException("Loan " + loanId + " is already returned");
         }
 
         BookClientResponse book = bookClient.getBook(loan.getBookId());

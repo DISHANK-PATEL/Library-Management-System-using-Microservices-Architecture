@@ -19,6 +19,7 @@ public class RabbitMQConfig {
         return new TopicExchange(EXCHANGE);
     }
 
+
     @Bean
     public DirectExchange deadLetterExchange() {
         return new DirectExchange(DLX);

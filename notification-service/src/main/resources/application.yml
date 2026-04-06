@@ -41,21 +41,14 @@ management:
   tracing:
     sampling:
       probability: 1.0
-    zipkin:
+  zipkin:
+    tracing:
       endpoint: http://localhost:9411/api/v2/spans
-
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,env,loggers,trace
-
-  metrics:
-    tags:
-      application: notification-service
+        include: health
 
 logging:
   pattern:
     level: "%5p [${spring.application.name:},traceId=%X{traceId:-},spanId=%X{spanId:-}]"
-
-  level:
-    org.springframework.amqp: DEBUG
