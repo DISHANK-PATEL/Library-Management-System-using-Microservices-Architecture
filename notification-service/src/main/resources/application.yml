@@ -5,6 +5,18 @@ spring:
   application:
     name: notification-service
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   config:
     import: optional:configserver:http://localhost:8888
 
@@ -23,6 +35,9 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
 
 management:
+  health:
+    mail:
+      enabled: false
   tracing:
     sampling:
       probability: 1.0

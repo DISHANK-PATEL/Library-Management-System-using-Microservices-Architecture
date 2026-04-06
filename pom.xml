@@ -3,13 +3,9 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
          https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- 
-        PARENT: Spring Boot Starter Parent
-        This gives us sensible defaults for Spring Boot apps:
-        plugin configurations, dependency versions, etc.
-    -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -17,22 +13,14 @@
         <relativePath/>
     </parent>
 
-    <!-- 
-        PROJECT COORDINATES
-        This is our root project. packaging=pom means
-        "this project doesn't produce a JAR, it just manages children"
-    -->
     <groupId>com.library</groupId>
     <artifactId>library-management-system</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
+
     <name>Library Management System</name>
     <description>Microservices-based Library Management System</description>
 
-    <!-- 
-        MODULES: All sub-projects that belong to this system.
-        Maven will build them in dependency order automatically.
-    -->
     <modules>
         <module>config-server</module>
         <module>eureka-server</module>
@@ -44,28 +32,16 @@
         <module>notification-service</module>
     </modules>
 
-    <!-- 
-        PROPERTIES: Central place for ALL version numbers.
-        Every child module references these instead of hardcoding versions.
-    -->
     <properties>
         <java.version>21</java.version>
         <spring-cloud.version>2023.0.1</spring-cloud.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
-        <lombok.version>1.18.32</lombok.version>
+        <lombok.version>1.18.34</lombok.version>
     </properties>
 
-    <!-- 
-        DEPENDENCY MANAGEMENT
-        This does NOT add dependencies to child modules.
-        It only says: "IF a child declares this dependency, use THIS version."
-        
-        The spring-cloud-dependencies BOM (Bill of Materials) manages versions
-        for ALL Spring Cloud libraries: Eureka, Gateway, OpenFeign, etc.
-        Without this, you'd have to manually match compatible versions.
-    -->
     <dependencyManagement>
         <dependencies>
+
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
@@ -73,40 +49,65 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+                <scope>provided</scope>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
-    <!-- 
-        SHARED DEPENDENCIES
-        These ARE added to every child module automatically.
-        We put things here that EVERY service needs.
-    -->
     <dependencies>
-        <!-- Lombok: reduces boilerplate (getters, setters, constructors) -->
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <optional>true</optional>
+            <scope>provided</scope>
         </dependency>
 
-        <!-- Testing: every service needs this -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
     </dependencies>
 
-    <!-- 
-        BUILD PLUGINS
-        Applied to all child modules.
-    -->
     <build>
         <plugins>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
@@ -115,6 +116,7 @@
                     </excludes>
                 </configuration>
             </plugin>
+
         </plugins>
     </build>
 
