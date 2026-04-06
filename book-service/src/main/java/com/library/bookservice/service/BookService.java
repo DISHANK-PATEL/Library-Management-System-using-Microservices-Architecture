@@ -17,14 +17,14 @@ public class BookService {
     @Value("${spring.application.name}")
     private String applicationName;
 
-    @Value("${server.port}")
-    private String port;
+    @Value("${eureka.instance.instance-id:${server.port}}")
+    private String instanceId;
 
     public BookDTO getBookById(Long id) {
         Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
 
-        String instanceId = applicationName + "-" + port;
+        String instance = applicationName + "-" + instanceId;
         return BookMapper.toDTO(book, instanceId);
     }
 

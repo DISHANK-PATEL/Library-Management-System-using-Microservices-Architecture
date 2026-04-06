@@ -10,7 +10,6 @@ spring:
 
   cloud:
     gateway:
-
       routes:
         - id: book-service
           uri: lb://book-service
