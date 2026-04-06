@@ -11,7 +11,7 @@ spring:
         enabled: true
 
   config:
-    import: optional:configserver:http://localhost:8888
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
 
   datasource:
     url: jdbc:mysql://localhost:3306/fine_db?createDatabaseIfNotExist=true

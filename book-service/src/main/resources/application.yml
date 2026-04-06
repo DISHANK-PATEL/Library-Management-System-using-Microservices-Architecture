@@ -10,7 +10,7 @@ spring:
     name: book-service
 
   config:
-    import: optional:configserver:http://localhost:8888
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
 
   # Local database defaults — overridden by Config Server in Docker.
   datasource:

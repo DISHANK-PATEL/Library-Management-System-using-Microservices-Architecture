@@ -6,7 +6,7 @@ spring:
     name: member-service
   sql.init.mode: always
   config:
-    import: optional:configserver:http://localhost:8888
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
 
   datasource:
     url: jdbc:mysql://localhost:3306/member_db?createDatabaseIfNotExist=true

@@ -99,6 +99,7 @@ public class LoanService {
         }
 
         BookClientResponse book = bookClient.getBook(loan.getBookId());
+        MemberClientResponse member = memberClient.getMember(loan.getMemberId());
 
         loan.setStatus(LoanStatus.RETURNED);
         loanRepository.save(loan);
@@ -119,6 +120,7 @@ public class LoanService {
                 .eventType("BOOK_RETURNED")
                 .loanId(loanId)
                 .bookTitle(book.getTitle())
+                .memberEmail(member.getEmail())
                 .dueDate(loan.getDueDate().toString())
                 .build();
         eventPublisher.publishLoanReturned(eventMessage);
