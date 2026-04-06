@@ -49,18 +49,28 @@ public class NotificationConsumer {
             }
         }
 
-        if (mailSender != null && to != null && !to.isEmpty()) {
+        if (to == null || to.isEmpty()) {
+            log.warn("No email found → sending to DLQ");
+            throw new RuntimeException("Missing email");
+        }
+
+        try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(to);
             message.setSubject(subject);
             message.setText(body);
             message.setFrom("library@example.com");
+
             mailSender.send(message);
+
             log.info("Email sent to {} — Subject: {}", to, subject);
-        } else {
-            log.info("========== EMAIL NOTIFICATION (LOGGED) ==========");
-            log.info("TO: {}, SUBJECT: {}, BODY: {}", to, subject, body);
-            log.info("=================================================");
+
+        } catch (Exception e) {
+            log.error("Email sending FAILED → sending to DLQ", e);
+
+            throw new org.springframework.amqp.AmqpRejectAndDontRequeueException(
+                    "Email failed, sending to DLQ", e
+            );
         }
     }
 }

@@ -12,7 +12,7 @@ public class RabbitMQConfig {
     public static final String EXCHANGE = "library.events.exchange";
     public static final String NOTIFICATION_QUEUE = "notification.email.queue";
     public static final String DLX = "library.events.dlx";
-
+    public static final String DLQ = "notification.email.dlq";
     public static final String LOAN_CREATED_KEY = "loan.book.created";
     public static final String LOAN_RETURNED_KEY = "loan.book.returned";
 
@@ -29,6 +29,10 @@ public class RabbitMQConfig {
                 .build();
     }
 
+    @Bean
+    public TopicExchange deadLetterExchange() {
+        return new TopicExchange(DLX);
+    }
     @Bean
     public Binding loanCreatedBinding(Queue notificationQueue, TopicExchange exchange) {
         return BindingBuilder.bind(notificationQueue).to(exchange).with(LOAN_CREATED_KEY);
