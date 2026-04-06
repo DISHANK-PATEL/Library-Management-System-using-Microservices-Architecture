@@ -1,4 +1,5 @@
 services:
+
   mysql:
     image: mysql:8.0
     container_name: library-mysql
@@ -7,9 +8,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      # Mounting init.sql — MySQL sirf first startup pe run karega
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
-      # mounting yaha :Taaki container ke delete hone se data loss na ho
       - mysql-data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
@@ -26,8 +25,8 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
-        RABBITMQ_DEFAULT_USER: admin
-        RABBITMQ_DEFAULT_PASS: admin
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
       interval: 10s
@@ -36,7 +35,6 @@ services:
     networks:
       - library-network
 
-  # Observability
 
   zipkin:
     image: openzipkin/zipkin
@@ -50,11 +48,204 @@ services:
       - library-network
 
 
-# agar ye nhi toh docker compose down would wipe pura database.
+  config-server:
+    build: ./config-server
+    container_name: library-config-server
+    ports:
+      - "8888:8888"
+    environment:
+      SPRING_CLOUD_CONFIG_SERVER_GIT_URI: file:///config-repo
+    volumes:
+      - ./config-repo:/config-repo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - library-network
+
+
+  eureka-server:
+    build: ./eureka-server
+    container_name: library-eureka
+    ports:
+      - "8761:8761"
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      config-server:
+        condition: service_healthy
+    networks:
+      - library-network
+
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: library-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - library-network
+
+
+  book-service-1:
+    build: ./book-service
+    container_name: library-book-1
+    ports:
+      - "8081:8081"
+    environment:
+      SERVER_PORT: 8081
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/book_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_INSTANCEID: book-service-8081
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    networks:
+      - library-network
+
+  book-service-2:
+    build: ./book-service
+    container_name: library-book-2
+    ports:
+      - "8082:8081"
+    environment:
+      SERVER_PORT: 8081
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/book_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_INSTANCEID: book-service-8082
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    networks:
+      - library-network
+
+  member-service:
+    build: ./member-service
+    container_name: library-member
+    ports:
+      - "8083:8082"
+    environment:
+      SERVER_PORT: 8082
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/member_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    networks:
+      - library-network
+
+  loan-service:
+    build: ./loan-service
+    container_name: library-loan
+    ports:
+      - "8084:8083"
+    environment:
+      SERVER_PORT: 8083
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/loan_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - library-network
+
+  fine-service:
+    build: ./fine-service
+    container_name: library-fine
+    ports:
+      - "8085:8084"
+    environment:
+      SERVER_PORT: 8084
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/fine_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - library-network
+
+  notification-service:
+    build: ./notification-service
+    container_name: library-notification
+    ports:
+      - "8086:8085"
+    environment:
+      SERVER_PORT: 8085
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - library-network
+
 volumes:
   mysql-data:
 
-# Custom network
 networks:
   library-network:
     driver: bridge
