@@ -13,12 +13,15 @@ public class RabbitMQConfig {
     public static final String NOTIFICATION_QUEUE = "notification.email.queue";
     public static final String DLX = "library.events.dlx";
     public static final String DLQ = "notification.email.dlq";
-    public static final String LOAN_CREATED_KEY = "loan.book.created";
-    public static final String LOAN_RETURNED_KEY = "loan.book.returned";
 
     @Bean
     public TopicExchange exchange() {
         return new TopicExchange(EXCHANGE);
+    }
+
+    @Bean
+    public DirectExchange deadLetterExchange() {
+        return new DirectExchange(DLX);
     }
 
     @Bean
@@ -30,17 +33,23 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public TopicExchange deadLetterExchange() {
-        return new TopicExchange(DLX);
+    public Queue deadLetterQueue() {
+        return QueueBuilder.durable(DLQ).build();
     }
+
+    @Bean
+    public Binding dlqBinding(Queue deadLetterQueue, DirectExchange deadLetterExchange) {
+        return BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange).with(NOTIFICATION_QUEUE);
+    }
+
     @Bean
     public Binding loanCreatedBinding(Queue notificationQueue, TopicExchange exchange) {
-        return BindingBuilder.bind(notificationQueue).to(exchange).with(LOAN_CREATED_KEY);
+        return BindingBuilder.bind(notificationQueue).to(exchange).with("loan.book.created");
     }
 
     @Bean
     public Binding loanReturnedBinding(Queue notificationQueue, TopicExchange exchange) {
-        return BindingBuilder.bind(notificationQueue).to(exchange).with(LOAN_RETURNED_KEY);
+        return BindingBuilder.bind(notificationQueue).to(exchange).with("loan.book.returned");
     }
 
     @Bean
